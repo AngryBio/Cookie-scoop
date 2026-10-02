@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cookie scoop calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pan:#C5C9C8; --pan-deep:#AEB3B2; --tag:#FBFAF6; --ink:#241C16;
+  --muted:#5C544D; --snap:#B06A33; --molasses:#5A3018; --line:rgba(36,28,22,.18);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --pan:#2B2E2E; --pan-deep:#1F2222; --tag:#3A3D3C; --ink:#F3EEE8;
+    --muted:#B5ADA5; --snap:#D08A4E; --molasses:#F0B27A; --line:rgba(243,238,232,.2);
+  }
+}
+:root[data-theme="dark"]{
+  --pan:#2B2E2E; --pan-deep:#1F2222; --tag:#3A3D3C; --ink:#F3EEE8;
+  --muted:#B5ADA5; --snap:#D08A4E; --molasses:#F0B27A; --line:rgba(243,238,232,.2);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--pan);color:var(--ink);
+  font-family:"Bricolage Grotesque",ui-rounded,"Trebuchet MS",system-ui,sans-serif;
+  font-size:1rem;line-height:1.45}
+main{max-width:44rem;margin:0 auto;padding:1.5rem 1rem 3rem}
+h1{font-size:clamp(2.1rem,9vw,3.4rem);font-weight:800;line-height:.95;letter-spacing:-.03em;margin:.5rem 0 .6rem}
+h2{font-size:1.35rem;font-weight:800;letter-spacing:-.01em;margin:0 0 .2rem}
+p.lead{color:var(--muted);margin:0 0 1.5rem;max-width:34rem}
+section{margin-top:2rem}
+.hint{color:var(--muted);font-size:.9rem;margin:0 0 1rem}
+
+/* histogram */
+.chart-wrap{overflow-x:auto;background:var(--pan-deep);border-radius:1.25rem;padding:1rem .75rem .75rem}
+.chart{display:flex;align-items:flex-end;gap:.4rem;height:17rem;min-width:19rem}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;
+  background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;min-width:0}
+.col .g{font-size:.8rem;font-weight:600;margin-bottom:.25rem}
+.col .bar{width:100%;background:var(--snap);border-radius:.5rem .5rem .2rem .2rem;transition:height .25s, background .15s}
+.col .num{font-size:.8rem;margin-top:.35rem;color:var(--muted);font-weight:600}
+.col[aria-pressed="true"] .bar{background:var(--molasses)}
+.col[aria-pressed="true"] .num,.col[aria-pressed="true"] .g{color:var(--ink);font-weight:800}
+.col:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:.5rem}
+.axis{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-top:.5rem}
+
+/* tag card */
+.tag{background:var(--tag);border-radius:1.25rem;padding:1.1rem 1.1rem 1.2rem;margin-top:1rem}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.75rem 0 0}
+.facts div{border-top:2px solid var(--line);padding-top:.5rem}
+.facts b{display:block;font-size:1.5rem;font-weight:800;line-height:1.1}
+.facts span{font-size:.82rem;color:var(--muted)}
+
+label{display:block;font-size:.9rem;font-weight:600;margin-bottom:.3rem}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.9rem}
+.row>div{flex:1 1 8rem;min-width:0}
+input,select{width:100%;font:inherit;font-size:1.1rem;padding:.65rem .7rem;border-radius:.7rem;
+  border:2px solid var(--line);background:var(--pan);color:var(--ink)}
+input:focus-visible,select:focus-visible{outline:3px solid var(--snap);outline-offset:1px}
+.answer{margin-top:1rem;font-size:1.05rem}
+.answer strong{font-size:2.4rem;font-weight:800;letter-spacing:-.02em;line-height:1;display:block;color:var(--molasses)}
+@media (prefers-reduced-motion:reduce){.col .bar{transition:none}}
+
+.ing{display:grid;grid-template-columns:1fr 2.2rem;gap:.4rem;padding:.7rem 0;border-top:2px solid var(--line)}
+.ing .what{grid-column:1}
+.ing .amt{grid-column:1;display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.ing .rm{grid-column:2;grid-row:1 / span 2;align-self:center}
+.ing input,.ing select{font-size:1rem;padding:.5rem .55rem}
+button.btn,button.rm{font:inherit;font-weight:600;border-radius:.7rem;border:2px solid var(--line);background:var(--pan);color:var(--ink);cursor:pointer}
+button.btn{padding:.6rem .9rem;margin-top:.4rem}
+button.rm{height:2.2rem;padding:0;font-size:1.2rem;line-height:1}
+button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);outline-offset:1px}
+.scaled{margin:.6rem 0 0;padding:0;list-style:none}
+.scaled li{display:flex;justify-content:space-between;gap:1rem;padding:.35rem 0;border-top:1px solid var(--line)}
+.scaled li b{white-space:nowrap}
+
+.ri{display:grid;gap:.45rem;padding:.9rem 0;border-top:2px solid var(--line)}
+.ri input,.ri select{font-size:1rem;padding:.5rem .55rem}
+.ri .top{display:grid;grid-template-columns:1fr 2.4rem;gap:.4rem}
+.ri .top .rm{height:auto}
+.ri .two{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.ri .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem}
+.ri label{font-size:.78rem;color:var(--muted);margin:0;min-width:0}
+.ri .warn{margin:0;font-size:.85rem;font-weight:600;color:var(--snap)}
+.ri [aria-invalid="true"]{border-color:var(--snap)}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#C5C9C8">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<main>
+  <h1>Cookie scoop calculator</h1>
+  <p class="lead">Nine scoop sizes, from the big #16 down to the tiny #100. Tap a bar to pick a scoop, or type any scoop number from 1 to 100 below.</p>
+
+  <section aria-labelledby="h-chart">
+    <h2 id="h-chart">Dough weight by scoop size</h2>
+    <p class="hint">Bigger scoop number, smaller cookie.</p>
+    <div class="chart-wrap">
+      <div class="chart" id="chart"></div>
+      <div class="axis"><span>Scoop number</span><span>grams of dough per cookie</span></div>
+    </div>
+    <div class="tag" aria-live="polite">
+      <h2 id="pickTitle"></h2>
+      <p class="hint" id="pickNote" style="margin:0"></p>
+      <div class="facts">
+        <div><b id="fG"></b><span>dough</span></div>
+        <div><b id="fT"></b><span>tablespoons</span></div>
+        <div><b id="fD"></b><span>baked cookie</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-count">
+    <h2 id="h-count">How many cookies will I get?</h2>
+    <div class="tag">
+      <div class="row">
+        <div><label for="dough">Total dough</label><input id="dough" type="number" inputmode="decimal" min="0" value="900"></div>
+        <div><label for="unit">Unit</label><select id="unit"><option value="1">grams</option><option value="28.35">ounces</option><option value="453.6">pounds</option></select></div>
+        <div><label for="scoop">Scoop # (1 to 100)</label><input id="scoop" type="number" inputmode="numeric" min="1" max="100" step="1" value="30"></div>
+      </div>
+      <p class="answer" id="countOut"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-which">
+    <h2 id="h-which">Which scoop should I use?</h2>
+    <p class="hint">Uses the total dough above.</p>
+    <div class="tag">
+      <label for="want">Cookies I want</label>
+      <input id="want" type="number" inputmode="numeric" min="1" value="24">
+      <p class="answer" id="whichOut"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-need">
+    <h2 id="h-need">How much dough do I need?</h2>
+    <p class="hint">Pick a scoop and a cookie count to see how much dough to make.</p>
+    <div class="tag">
+      <div class="row" style="margin-top:0">
+        <div><label for="scoop2">Scoop # (1 to 100)</label><input id="scoop2" type="number" inputmode="numeric" min="1" max="100" step="1" value="30"></div>
+        <div><label for="count2">Cookies I want</label><input id="count2" type="number" inputmode="numeric" min="1" value="36"></div>
+      </div>
+      <p class="answer" id="needOut"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-recipe">
+    <h2 id="h-recipe">Scale my recipe to match</h2>
+    <p class="hint">Add your ingredients for one batch. Weights are the most accurate; cups and spoons are converted with typical weights for each ingredient. To get ingredient cost, fill in the package size you buy and what you pay for it.</p>
+    <div class="tag">
+      <div id="rows"></div>
+      <button class="btn" type="button" id="addRow">Add ingredient</button>
+      <p class="answer" id="recipeOut"></p>
+      <ul class="scaled" id="scaled"></ul>
+      <p class="answer" id="costOut"></p>
+    </div>
+  </section>
+</main>
+<script>
+var S=[
+ {n:16,t:4,g:72,d:'3 5/8"'},{n:20,t:3.2,g:60,d:'3 3/8"'},{n:24,t:2.67,g:50,d:'3 1/8"'},
+ {n:30,t:2.13,g:40,d:'3"'},{n:40,t:1.6,g:30,d:'2 3/4"'},{n:50,t:1.28,g:23,d:'2 1/2"'},
+ {n:60,t:1.07,g:20,d:'2 1/4"'},{n:70,t:0.914,g:16,d:'2 1/8"'},{n:100,t:0.64,g:12,d:'2"'}
+];
+var selN=30, $=function(i){return document.getElementById(i)};
+var chart=$('chart'), scoop=$('scoop');
+function frac(x){ // nearest 1/8 inch
+  var e=Math.round(x*8), w=Math.floor(e/8), r=e%8, f='';
+  if(r){var d=8; while(r%2===0){r/=2;d/=2} f=r+'/'+d}
+  return (w?w:'')+(w&&f?' ':'')+f+'"';
+}
+function num(x){return x>=100?Math.round(x):x>=10?Math.round(x*10)/10:Math.round(x*100)/100}
+// Scoop number = scoops per quart (64 tablespoons); chart runs 18g of dough per tablespoon
+function get(n){
+  for(var i=0;i<S.length;i++) if(S[i].n===n) return S[i];
+  var g=1152/n;
+  return {n:n,t:num(64/n),g:num(g),d:frac(2*Math.pow(g/12,0.332)),est:true};
+}
+S.forEach(function(s){
+  var b=document.createElement('button');
+  b.className='col'; b.type='button';
+  b.setAttribute('aria-label','Scoop #'+s.n+', '+s.g+' grams');
+  b.innerHTML='<span class="g">'+s.g+'g</span><span class="bar" style="height:'+(s.g/72*78)+'%"></span><span class="num">#'+s.n+'</span>';
+  b.onclick=function(){selN=s.n;scoop.value=s.n;render()};
+  chart.appendChild(b);
+});
+function grams(){var v=parseFloat($('dough').value); return (v>0? v:0)*parseFloat($('unit').value)}
+function render(){
+  var s=get(selN);
+  [].forEach.call(chart.children,function(c,i){c.setAttribute('aria-pressed',S[i].n===selN?'true':'false')});
+  $('pickTitle').textContent='Scoop #'+s.n;
+  $('pickNote').textContent=s.est?'Not on the chart, so these are estimates worked out from the chart sizes.':'';
+  $('fG').textContent=s.g+'g'; $('fT').textContent=s.t+'T'; $('fD').textContent=(s.est?'~':'')+s.d;
+  var g=grams();
+  if(!g){ $('countOut').textContent='Enter your total dough weight to see the count.'; }
+  else{
+    var c=Math.floor(g/s.g+1e-9), left=Math.round(g-c*s.g);
+    $('countOut').innerHTML='<strong>'+c+' cookies</strong>'+(c/12).toFixed(1)+' dozen with the #'+s.n+' scoop'+(left?', '+left+'g of dough left over':'')+'.';
+  }
+  if(document.activeElement!==$('scoop2')) $('scoop2').value=selN;
+  renderNeed();
+  var w=parseInt($('want').value,10);
+  if(!g||!(w>0)){ $('whichOut').textContent='Enter a dough weight and a cookie count.'; return; }
+  var per=g/w, raw=Math.round(1152/per), n=Math.min(100,Math.max(1,raw)), b=get(n);
+  var note = raw<1 ? ' That is more dough than a #1 scoop holds.' :
+             raw>100 ? ' That is smaller than a #100 scoop, so you will come up short.' : '';
+  var near=S[0]; S.forEach(function(x){ if(Math.abs(x.g-per)<Math.abs(near.g-per)) near=x; });
+  var alt = b.est ? ' Closest scoop on the chart: #'+near.n+' ('+near.g+'g, '+Math.floor(g/near.g)+' cookies).' : '';
+  $('whichOut').innerHTML='<strong>Scoop #'+b.n+'</strong>You need about '+num(per)+'g per cookie. A #'+b.n+' holds '+(b.est?'about ':'')+b.g+'g and bakes to '+(b.est?'about ':'')+b.d+'.'+note+alt;
+}
+['dough','unit','want'].forEach(function(id){$(id).addEventListener('input',render)});
+scoop.addEventListener('input',function(){
+  var v=parseInt(scoop.value,10);
+  if(v>=1&&v<=100){selN=v;render()}
+});
+scoop.addEventListener('blur',function(){scoop.value=selN});
+// ---- dough needed + recipe scaling ----
+// [name, grams per cup, extra units {unit: grams}]
+var ING=[
+ ['Flour, all-purpose',120],['Flour, bread',120],['Flour, cake',114],['Flour, whole wheat',113],['Almond flour',96],
+ ['Cornstarch',112],['Rolled oats',90],['Quick oats',90],
+ ['Sugar, white',198],['Sugar, light brown',213],['Sugar, dark brown',213],['Powdered sugar',113],
+ ['Molasses',340],['Honey',336],['Maple syrup',312],['Corn syrup',312],
+ ['Butter',227,{stick:113}],['Shortening',184],['Oil',198],['Peanut butter',270],['Cream cheese',227],['Sour cream',227],
+ ['Egg, large',243,{whole:50}],['Egg yolk',243,{whole:14}],['Egg white',243,{whole:35}],
+ ['Milk',240],['Heavy cream',232],['Water',237],
+ ['Vanilla extract',208],['Vanilla bean paste',288],['Almond extract',208],
+ ['Baking soda',288],['Baking powder',192],['Cream of tartar',144],
+ ['Salt, table',288],['Salt, kosher (Morton)',240],['Salt, kosher (Diamond Crystal)',135],
+ ['Cinnamon, ground',125],['Ginger, ground',96],['Nutmeg, ground',106],['Cloves, ground',100],['Allspice, ground',91],['Espresso powder',96],
+ ['Cocoa powder',84],['Chocolate chips, semi-sweet',170],['Chocolate chips, milk',170],['Chocolate chips, dark',170],
+ ['White chocolate chips',170],['Chocolate, chopped',170],
+ ['Walnuts, chopped',113],['Pecans, chopped',114],['Almonds, sliced',86],['Coconut, shredded',85],
+ ['Raisins',149],['Dried cranberries',114],['Sprinkles',180],
+ ['Other',240]];
+var OILS=[['Vegetable',198],['Canola',198],['Olive',200],['Coconut',226],['Avocado',198],['Grapeseed',198],['Sunflower',198]];
+var BASE=['cup','tbsp','tsp','g','kg','oz','lb','fl oz','ml','L'];
+var recipe=[{k:'Flour, all-purpose',u:'cup'},{k:'Sugar, white',u:'cup'},{k:'Butter',u:'stick'},{k:'Egg, large',u:'whole'}];
+try{var sv=JSON.parse(localStorage.getItem('scoopRecipe3')); if(sv&&sv.length) recipe=sv;}catch(e){}
+function save(){try{localStorage.setItem('scoopRecipe3',JSON.stringify(recipe))}catch(e){}}
+function ing(r){for(var i=0;i<ING.length;i++) if(ING[i][0]===r.k) return ING[i]; return ING[ING.length-1]}
+function unitsFor(r){var x=ing(r)[2]; return (x?Object.keys(x):[]).concat(BASE)}
+function conv(a,u,r){
+  a=parseFloat(a); if(!(a>0)) return 0;
+  var I=ing(r), c=r.k==='Oil'?OILS[r.o||0][1]:I[1];
+  if(I[2]&&I[2][u]) return a*I[2][u];
+  var f=({g:1,kg:1000,oz:28.35,lb:453.6,cup:c,tbsp:c/16,tsp:c/48,'fl oz':c/8,ml:c/236.6,L:c/0.2366})[u];
+  return f?a*f:0;
+}
+function named(r){return r.k!=='Other'||(r.n&&r.n.trim())}
+function label(r){return r.k==='Other'?r.n.trim():r.k==='Oil'?'Oil, '+OILS[r.o||0][0].toLowerCase():r.k}
+function rowG(r){return named(r)?conv(r.a,r.u,r):0}
+function rowCost(r){
+  var g=rowG(r), pk=conv(r.pa,r.pu,r), pp=parseFloat(r.pp);
+  return (g&&pk&&pp>0)?g*pp/pk:null;
+}
+function el(t,c){var e=document.createElement(t); if(c) e.className=c; return e}
+function sel(opts,val,aria){
+  var s=el('select'); if(aria) s.setAttribute('aria-label',aria);
+  opts.forEach(function(x){var o=el('option');o.value=x;o.textContent=x;s.appendChild(o)});
+  s.value=val; return s;
+}
+function numIn(val,ph){var a=el('input');a.type='number';a.min=0;a.step='any';a.inputMode='decimal';if(ph)a.placeholder=ph;a.value=val||'';return a}
+function lab(text,ctrl){var l=el('label');l.appendChild(document.createTextNode(text));l.appendChild(ctrl);return l}
+function buildRows(){
+  var box=$('rows'); box.innerHTML='';
+  recipe.forEach(function(r,k){
+    var us=unitsFor(r);
+    if(us.indexOf(r.u)<0) r.u=us[0];
+    if(us.indexOf(r.pu)<0) r.pu=r.k.indexOf('Egg')===0?'whole':'lb';
+    var d=el('div','ri'), top=el('div','top');
+    var s=sel(ING.map(function(x){return x[0]}),ing(r)[0],'Ingredient');
+    var x=el('button','rm'); x.type='button'; x.textContent='\u00d7'; x.setAttribute('aria-label','Remove ingredient');
+    top.appendChild(s); top.appendChild(x); d.appendChild(top);
+    s.onchange=function(){r.k=s.value; save(); buildRows(); renderNeed()};
+    x.onclick=function(){recipe.splice(k,1); save(); buildRows(); renderNeed()};
+    if(r.k==='Oil'){
+      var o=sel(OILS.map(function(y){return y[0]}),OILS[r.o||0][0],'Type of oil');
+      o.onchange=function(){r.o=o.selectedIndex; save(); renderNeed()};
+      d.appendChild(lab('Type of oil',o));
+    }
+    if(r.k==='Other'){
+      var n=el('input'); n.type='text'; n.required=true; n.placeholder='Ingredient name (required)'; n.value=r.n||'';
+      n.setAttribute('aria-label','Ingredient name');
+      var w=el('p','warn'); w.textContent='Type the ingredient name to include it.';
+      var chk=function(){var bad=!named(r); n.setAttribute('aria-invalid',bad?'true':'false'); w.hidden=!bad};
+      n.oninput=function(){r.n=n.value; chk(); save(); renderNeed()};
+      chk(); d.appendChild(n); d.appendChild(w);
+    }
+    var two=el('div','two'), a=numIn(r.a), u=sel(us,r.u);
+    a.oninput=function(){r.a=a.value; save(); renderNeed()};
+    u.onchange=function(){r.u=u.value; save(); renderNeed()};
+    two.appendChild(lab('Amount in recipe',a)); two.appendChild(lab('Unit',u)); d.appendChild(two);
+    var three=el('div','three'), pa=numIn(r.pa), pu=sel(us,r.pu), pp=numIn(r.pp);
+    pa.oninput=function(){r.pa=pa.value; save(); renderNeed()};
+    pu.onchange=function(){r.pu=pu.value; save(); renderNeed()};
+    pp.oninput=function(){r.pp=pp.value; save(); renderNeed()};
+    three.appendChild(lab('Package size',pa)); three.appendChild(lab('Package unit',pu)); three.appendChild(lab('Price paid ($)',pp));
+    d.appendChild(three); box.appendChild(d);
+  });
+}
+function wt(g){return Math.round(g)+'g'+' ('+(g>=453.6?num(g/453.6)+' lb':num(g/28.35)+' oz')+')'}
+function money(x){return '$'+(x<0.1?x.toFixed(3):x.toFixed(2))}
+function renderNeed(){
+  var s=get(selN), n=parseInt($('count2').value,10), list=$('scaled'); list.innerHTML=''; $('costOut').textContent='';
+  if(!(n>0)){ $('needOut').textContent='Enter how many cookies you want.'; $('recipeOut').textContent=''; return; }
+  var need=n*s.g;
+  $('needOut').innerHTML='<strong>'+Math.round(need)+'g of dough</strong>That is '+(need>=453.6?num(need/453.6)+' lb':num(need/28.35)+' oz')+' for '+n+' cookies at '+(s.est?'about ':'')+s.g+'g each with the #'+s.n+' scoop.';
+  var tot=0, cost=0, priced=0, used=0;
+  recipe.forEach(function(r){var g=rowG(r); if(g){tot+=g; used++; var c=rowCost(r); if(c!==null){cost+=c; priced++}}});
+  if(!tot){ $('recipeOut').textContent='Enter ingredient amounts to see how many batches to make.'; return; }
+  var m=need/tot;
+  $('recipeOut').innerHTML='<strong>'+num(m)+'\u00d7 the recipe</strong>One batch is about '+wt(tot)+' of dough, which makes '+Math.floor(tot/s.g+1e-9)+' cookies with the #'+s.n+' scoop. For '+n+' cookies, use:';
+  recipe.forEach(function(r){
+    if(!rowG(r)) return;
+    var li=el('li'), a=el('span'), b=el('b'), c=rowCost(r);
+    a.textContent=label(r);
+    b.textContent=num(parseFloat(r.a)*m)+' '+r.u+(c!==null?'  \u2022  '+money(c*m):'');
+    li.appendChild(a); li.appendChild(b); list.appendChild(li);
+  });
+  if(priced){
+    $('costOut').innerHTML='<strong>'+money(cost*m)+' in ingredients</strong>for '+n+' cookies, or '+money(cost*s.g/tot)+' per cookie. One batch as written costs '+money(cost)+'.'+
+      (priced<used?' '+(used-priced)+' ingredient'+(used-priced>1?'s have':' has')+' no package size and price yet, so the real cost is higher.':'');
+  }
+}
+$('addRow').onclick=function(){recipe.push({k:'Flour, all-purpose',u:'cup'}); save(); buildRows(); renderNeed()};
+$('count2').addEventListener('input',renderNeed);
+$('scoop2').addEventListener('input',function(){
+  var v=parseInt($('scoop2').value,10);
+  if(v>=1&&v<=100){selN=v;scoop.value=v;render()}
+});
+$('scoop2').addEventListener('blur',function(){$('scoop2').value=selN});
+buildRows();
+render();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body>
+</html>
