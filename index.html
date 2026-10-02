@@ -90,6 +90,8 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
 .col .g{font-size:.72rem;white-space:nowrap}
 .col.est .bar{background:repeating-linear-gradient(135deg,var(--snap) 0 5px,transparent 5px 9px);outline:2px solid var(--snap);outline-offset:-2px}
 .col.est[aria-pressed="true"] .bar{background:repeating-linear-gradient(135deg,var(--molasses) 0 5px,transparent 5px 9px);outline-color:var(--molasses)}
+.col .vol{font-size:.66rem;font-weight:800;line-height:1.1;margin-top:.15rem;white-space:nowrap;color:var(--ink)}
+.chart{height:18.5rem}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#C5C9C8">
@@ -99,7 +101,7 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
 <body>
 <main>
   <h1>Cookie scoop calculator</h1>
-  <p class="lead">Nine scoop sizes, from the big #16 down to the tiny #100. Tap a bar to pick a scoop, or type any scoop number from 1 to 100 below.</p>
+  <p class="lead">Thirteen scoop sizes, from the giant #1 down to the tiny #100. Tap a bar to pick a scoop, or type any scoop number from 1 to 100 below.</p>
 
   <section aria-labelledby="h-chart">
     <h2 id="h-chart">Dough weight by scoop size</h2>
@@ -190,22 +192,26 @@ function get(n){
 }
 var extras=[];
 try{var ex=JSON.parse(localStorage.getItem('scoopExtras')); if(ex&&ex.length) extras=ex.filter(function(n){return n>=1&&n<=100});}catch(e){}
-function onChart(n){for(var i=0;i<S.length;i++) if(S[i].n===n) return true; return false}
+var PERM=[1,2,4,8];
+var VOL={1:'1 quart',2:'\u00bd quart',4:'1 cup',8:'\u00bd cup',16:'\u00bc cup'};
+var VOLS={1:'1 qt',2:'\u00bd qt',4:'1 cup',8:'\u00bd cup',16:'\u00bc cup'};
+function onChart(n){if(PERM.indexOf(n)>=0) return true; for(var i=0;i<S.length;i++) if(S[i].n===n) return true; return false}
 function buildChart(){
-  var ns=S.map(function(s){return s.n}).concat(extras);
+  var ns=S.map(function(s){return s.n}).concat(PERM);
+  extras.forEach(function(n){if(ns.indexOf(n)<0) ns.push(n)});
   if(ns.indexOf(selN)<0) ns.push(selN);
   ns.sort(function(a,b){return a-b});
   var items=ns.map(get), max=0, min=1e9;
   items.forEach(function(s){max=Math.max(max,s.g);min=Math.min(min,s.g)});
   var log=max/min>12, lo=Math.log(min/1.8), span=Math.log(max)-lo;
-  chart.innerHTML=''; chart.style.minWidth=(items.length*2.2)+'rem';
+  chart.innerHTML=''; chart.style.minWidth=(items.length*2.6)+'rem';
   items.forEach(function(s){
     var b=document.createElement('button');
     b.className='col'+(s.est?' est':''); b.type='button';
     b.setAttribute('aria-pressed',s.n===selN?'true':'false');
-    b.setAttribute('aria-label','Scoop #'+s.n+', '+(s.est?'about ':'')+s.g+' grams');
+    b.setAttribute('aria-label','Scoop #'+s.n+(VOL[s.n]?', '+VOL[s.n]:'')+', '+(s.est?'about ':'')+s.g+' grams');
     var hgt=(log?(Math.log(s.g)-lo)/span:s.g/max)*78;
-    b.innerHTML='<span class="g">'+Math.round(s.g)+'g</span><span class="bar" style="height:'+hgt+'%"></span><span class="num">#'+s.n+'</span>';
+    b.innerHTML='<span class="g">'+Math.round(s.g)+'g</span><span class="bar" style="height:'+hgt+'%"></span><span class="num">#'+s.n+'</span><span class="vol">'+(VOLS[s.n]||'&nbsp;')+'</span>';
     b.onclick=function(){selN=s.n;scoop.value=s.n;render()};
     chart.appendChild(b);
   });
@@ -219,7 +225,7 @@ function grams(){var v=parseFloat($('dough').value); return (v>0? v:0)*parseFloa
 function render(){
   var s=get(selN);
   buildChart();
-  $('pickTitle').textContent='Scoop #'+s.n;
+  $('pickTitle').textContent='Scoop #'+s.n+(VOL[s.n]?' \u2022 '+VOL[s.n]:'');
   $('pickNote').textContent=s.est?'Not on the chart, so these are estimates worked out from the chart sizes.':'';
   $('fG').textContent=s.g+'g'; $('fT').textContent=s.t+'T'; $('fD').textContent=(s.est?'~':'')+s.d;
   var g=grams();
