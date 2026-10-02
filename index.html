@@ -86,6 +86,10 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
 .ri label{font-size:.78rem;color:var(--muted);margin:0;min-width:0}
 .ri .warn{margin:0;font-size:.85rem;font-weight:600;color:var(--snap)}
 .ri [aria-invalid="true"]{border-color:var(--snap)}
+
+.col .g{font-size:.72rem;white-space:nowrap}
+.col.est .bar{background:repeating-linear-gradient(135deg,var(--snap) 0 5px,transparent 5px 9px);outline:2px solid var(--snap);outline-offset:-2px}
+.col.est[aria-pressed="true"] .bar{background:repeating-linear-gradient(135deg,var(--molasses) 0 5px,transparent 5px 9px);outline-color:var(--molasses)}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#C5C9C8">
@@ -99,14 +103,17 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
 
   <section aria-labelledby="h-chart">
     <h2 id="h-chart">Dough weight by scoop size</h2>
-    <p class="hint">Bigger scoop number, smaller cookie.</p>
+    <p class="hint">Bigger scoop number, smaller cookie. Type any scoop from #1 to #100 to add it here.</p>
+    <div class="row" style="margin:0 0 1rem"><div><label for="scoop0">Show scoop # (1 to 100)</label><input id="scoop0" type="number" inputmode="numeric" min="1" max="100" step="1" value="30"></div></div>
     <div class="chart-wrap">
       <div class="chart" id="chart"></div>
       <div class="axis"><span>Scoop number</span><span>grams of dough per cookie</span></div>
+      <p class="hint" id="scaleNote" style="margin:.5rem 0 0"></p>
     </div>
     <div class="tag" aria-live="polite">
       <h2 id="pickTitle"></h2>
       <p class="hint" id="pickNote" style="margin:0"></p>
+      <button class="btn" type="button" id="pin" hidden></button>
       <div class="facts">
         <div><b id="fG"></b><span>dough</span></div>
         <div><b id="fT"></b><span>tablespoons</span></div>
@@ -181,18 +188,37 @@ function get(n){
   var g=1152/n;
   return {n:n,t:num(64/n),g:num(g),d:frac(2*Math.pow(g/12,0.332)),est:true};
 }
-S.forEach(function(s){
-  var b=document.createElement('button');
-  b.className='col'; b.type='button';
-  b.setAttribute('aria-label','Scoop #'+s.n+', '+s.g+' grams');
-  b.innerHTML='<span class="g">'+s.g+'g</span><span class="bar" style="height:'+(s.g/72*78)+'%"></span><span class="num">#'+s.n+'</span>';
-  b.onclick=function(){selN=s.n;scoop.value=s.n;render()};
-  chart.appendChild(b);
-});
+var extras=[];
+try{var ex=JSON.parse(localStorage.getItem('scoopExtras')); if(ex&&ex.length) extras=ex.filter(function(n){return n>=1&&n<=100});}catch(e){}
+function onChart(n){for(var i=0;i<S.length;i++) if(S[i].n===n) return true; return false}
+function buildChart(){
+  var ns=S.map(function(s){return s.n}).concat(extras);
+  if(ns.indexOf(selN)<0) ns.push(selN);
+  ns.sort(function(a,b){return a-b});
+  var items=ns.map(get), max=0, min=1e9;
+  items.forEach(function(s){max=Math.max(max,s.g);min=Math.min(min,s.g)});
+  var log=max/min>12, lo=Math.log(min/1.8), span=Math.log(max)-lo;
+  chart.innerHTML=''; chart.style.minWidth=(items.length*2.2)+'rem';
+  items.forEach(function(s){
+    var b=document.createElement('button');
+    b.className='col'+(s.est?' est':''); b.type='button';
+    b.setAttribute('aria-pressed',s.n===selN?'true':'false');
+    b.setAttribute('aria-label','Scoop #'+s.n+', '+(s.est?'about ':'')+s.g+' grams');
+    var hgt=(log?(Math.log(s.g)-lo)/span:s.g/max)*78;
+    b.innerHTML='<span class="g">'+Math.round(s.g)+'g</span><span class="bar" style="height:'+hgt+'%"></span><span class="num">#'+s.n+'</span>';
+    b.onclick=function(){selN=s.n;scoop.value=s.n;render()};
+    chart.appendChild(b);
+  });
+  $('scaleNote').textContent=log?'Bar heights are compressed so the small scoops stay visible. Striped bars are estimates.':
+    (items.length>S.length?'Striped bars are estimates, not from the chart.':'');
+  var pin=$('pin');
+  if(onChart(selN)){pin.hidden=true}
+  else{pin.hidden=false; pin.textContent=extras.indexOf(selN)<0?'Keep #'+selN+' on the chart':'Remove #'+selN+' from the chart'}
+}
 function grams(){var v=parseFloat($('dough').value); return (v>0? v:0)*parseFloat($('unit').value)}
 function render(){
   var s=get(selN);
-  [].forEach.call(chart.children,function(c,i){c.setAttribute('aria-pressed',S[i].n===selN?'true':'false')});
+  buildChart();
   $('pickTitle').textContent='Scoop #'+s.n;
   $('pickNote').textContent=s.est?'Not on the chart, so these are estimates worked out from the chart sizes.':'';
   $('fG').textContent=s.g+'g'; $('fT').textContent=s.t+'T'; $('fD').textContent=(s.est?'~':'')+s.d;
@@ -203,6 +229,8 @@ function render(){
     $('countOut').innerHTML='<strong>'+c+' cookies</strong>'+(c/12).toFixed(1)+' dozen with the #'+s.n+' scoop'+(left?', '+left+'g of dough left over':'')+'.';
   }
   if(document.activeElement!==$('scoop2')) $('scoop2').value=selN;
+  if(document.activeElement!==$('scoop0')) $('scoop0').value=selN;
+  if(document.activeElement!==scoop) scoop.value=selN;
   renderNeed();
   var w=parseInt($('want').value,10);
   if(!g||!(w>0)){ $('whichOut').textContent='Enter a dough weight and a cookie count.'; return; }
@@ -334,7 +362,18 @@ $('scoop2').addEventListener('input',function(){
   var v=parseInt($('scoop2').value,10);
   if(v>=1&&v<=100){selN=v;scoop.value=v;render()}
 });
+$('scoop0').addEventListener('input',function(){
+  var v=parseInt($('scoop0').value,10);
+  if(v>=1&&v<=100){selN=v;render()}
+});
+$('scoop0').addEventListener('blur',function(){$('scoop0').value=selN});
 $('scoop2').addEventListener('blur',function(){$('scoop2').value=selN});
+$('pin').onclick=function(){
+  var i=extras.indexOf(selN);
+  if(i<0) extras.push(selN); else extras.splice(i,1);
+  try{localStorage.setItem('scoopExtras',JSON.stringify(extras))}catch(e){}
+  render();
+};
 buildRows();
 render();
 </script>
