@@ -92,6 +92,7 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
 .col.est[aria-pressed="true"] .bar{background:repeating-linear-gradient(135deg,var(--molasses) 0 5px,transparent 5px 9px);outline-color:var(--molasses)}
 .col .vol{font-size:.66rem;font-weight:800;line-height:1.1;margin-top:.15rem;white-space:nowrap;color:var(--ink)}
 .chart{height:18.5rem}
+.btns{display:flex;flex-wrap:wrap;gap:.5rem}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#C5C9C8">
@@ -162,6 +163,16 @@ button.btn:focus-visible,button.rm:focus-visible{outline:3px solid var(--snap);o
     <h2 id="h-recipe">Scale my recipe to match</h2>
     <p class="hint">Add your ingredients for one batch. Weights are the most accurate; cups and spoons are converted with typical weights for each ingredient. To get ingredient cost, fill in the package size you buy and what you pay for it.</p>
     <div class="tag">
+      <label for="rname">Recipe name</label>
+      <input id="rname" type="text" placeholder="For example, Gingersnaps" autocomplete="off">
+      <div class="btns">
+        <button class="btn" type="button" id="saveRec">Save recipe</button>
+        <button class="btn" type="button" id="newRec">Start a new recipe</button>
+        <button class="btn" type="button" id="delRec" hidden></button>
+      </div>
+      <label for="openSel" style="margin-top:.8rem">Open a saved recipe</label>
+      <select id="openSel"></select>
+      <p class="hint" id="recStatus" aria-live="polite" style="margin:.5rem 0 .6rem;min-height:1.2em"></p>
       <div id="rows"></div>
       <button class="btn" type="button" id="addRow">Add ingredient</button>
       <p class="answer" id="recipeOut"></p>
@@ -374,6 +385,46 @@ $('scoop0').addEventListener('input',function(){
 });
 $('scoop0').addEventListener('blur',function(){$('scoop0').value=selN});
 $('scoop2').addEventListener('blur',function(){$('scoop2').value=selN});
+// ---- named recipes ----
+var saved={}, rname='';
+try{var sr=JSON.parse(localStorage.getItem('scoopSaved')); if(sr&&typeof sr==='object') saved=sr;}catch(e){}
+try{rname=localStorage.getItem('scoopRecipeName')||'';}catch(e){}
+function storeSaved(){try{localStorage.setItem('scoopSaved',JSON.stringify(saved))}catch(e){}}
+function storeName(){try{localStorage.setItem('scoopRecipeName',rname)}catch(e){}}
+function fillSaved(){
+  var s=$('openSel'), names=Object.keys(saved).sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:1});
+  s.innerHTML='';
+  var o=document.createElement('option'); o.value=''; o.textContent=names.length?'Choose a recipe':'No saved recipes yet'; s.appendChild(o);
+  names.forEach(function(n){var p=document.createElement('option'); p.value=n; p.textContent=n; s.appendChild(p)});
+  s.disabled=!names.length; s.value='';
+  var d=$('delRec'), key=rname.trim();
+  if(saved[key]){d.hidden=false; d.textContent='Delete saved "'+key+'"'} else d.hidden=true;
+}
+$('rname').value=rname;
+$('rname').oninput=function(){rname=$('rname').value; storeName(); fillSaved()};
+$('saveRec').onclick=function(){
+  var key=rname.trim();
+  if(!key){$('recStatus').textContent='Type a recipe name first, then save.'; $('rname').focus(); return}
+  saved[key]=JSON.parse(JSON.stringify(recipe)); storeSaved(); fillSaved();
+  $('recStatus').textContent='Saved "'+key+'".';
+};
+$('openSel').onchange=function(){
+  var key=$('openSel').value; if(!saved[key]) return;
+  recipe=JSON.parse(JSON.stringify(saved[key])); rname=key; $('rname').value=key;
+  save(); storeName(); buildRows(); renderNeed(); fillSaved();
+  $('recStatus').textContent='Opened "'+key+'".';
+};
+$('delRec').onclick=function(){
+  var key=rname.trim(); if(!saved[key]) return;
+  delete saved[key]; storeSaved(); fillSaved();
+  $('recStatus').textContent='Deleted the saved copy of "'+key+'". The ingredients below are still here until you start a new recipe.';
+};
+$('newRec').onclick=function(){
+  recipe=[{k:'Flour, all-purpose',u:'cup'}]; rname=''; $('rname').value='';
+  save(); storeName(); buildRows(); renderNeed(); fillSaved();
+  $('recStatus').textContent='Started a new recipe.';
+};
+fillSaved();
 $('pin').onclick=function(){
   var i=extras.indexOf(selN);
   if(i<0) extras.push(selN); else extras.splice(i,1);
